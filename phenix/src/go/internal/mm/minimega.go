@@ -121,6 +121,7 @@ func (this Minimega) GetVMInfo(opts ...Option) VMs {
 		vm.Host = row["host"]
 		vm.Name = row["name"]
 		vm.Running = row["state"] == "RUNNING"
+		vm.State = row["state"]
 
 		s := row["vlan"]
 		s = strings.TrimPrefix(s, "[")
@@ -140,7 +141,11 @@ func (this Minimega) GetVMInfo(opts ...Option) VMs {
 			vm.Taps = strings.Split(s, ", ")
 		}
 
-		vm.Captures = this.GetVMCaptures(opts...)
+		//Make sure the vm name is set prior to
+		//calling "GetVMCaptures" as the vm name is not always
+		//set when calling GetVMInfo
+		
+		vm.Captures = this.GetVMCaptures(NS(o.ns),VMName(vm.Name))
 
 		uptime, err := time.ParseDuration(row["uptime"])
 		if err == nil {
@@ -400,6 +405,25 @@ func (Minimega) GetVMHost(opts ...Option) (string, error) {
 
 	return status[0]["host"], nil
 }
+
+func (Minimega) GetVMState(opts ...Option) (string, error) {
+	o := NewOptions(opts...)
+
+	cmd := mmcli.NewNamespacedCommand(o.ns)
+	cmd.Command = "vm info"
+	cmd.Columns = []string{"state"}
+	cmd.Filters = []string{"name=" + o.vm}
+
+	status := mmcli.RunTabular(cmd)
+
+	if len(status) == 0 {
+		return "", fmt.Errorf("VM %s not found", o.vm)
+	}
+
+	return status[0]["state"], nil
+}
+
+
 
 func (Minimega) ConnectVMInterface(opts ...Option) error {
 	o := NewOptions(opts...)
