@@ -13,3 +13,12 @@ bin/phenix:
 	$(MAKE) -C src/go bin/phenix
 	mkdir -p bin
 	cp src/go/bin/phenix bin/phenix
+web:
+	$(MAKE) -C src/js web
+	cp -a src/js/dist/* src/go/web/public
+	$(RM) bin/phenix
+	$(MAKE) -C src/go bin/phenix
+	mkdir -p bin
+	cp src/go/bin/phenix bin/phenix
+
+
