@@ -408,9 +408,20 @@
 
     computed: {
       filteredData () {
-        return this.search.vms.filter(vm => {
-          return vm.toLowerCase().indexOf( this.search.filter.toLowerCase() ) >= 0
-        })
+          return this.search.vms.names.filter(vm => {
+            return vm.toLowerCase().indexOf(this.search.filter.toLowerCase()) >= 0
+          }) || this.search.vms.ips.filter(vm => { 
+            return vm.toLowerCase().indexOf(this.search.filter.toLowerCase()) >= 0
+          }) || this.search.vms.networks.filter(vm => {
+            return vm.toLowerCase().indexOf(this.search.filter.toLowerCase()) >= 0
+          }) || this.search.vms.taps.filter(vm => { 
+            return vm.toLowerCase().indexOf(this.search.filter.toLowerCase()) >= 0
+          })
+       
+     
+//        return this.search.vms.filter(vm => {
+//          return vm.toLowerCase().indexOf( this.search.filter.toLowerCase() ) >= 0
+//        })
       },
 
       paginationNeeded () {
@@ -842,7 +853,12 @@
           let state = await resp.json();
 
           this.experiment  = state;
-          this.search.vms  = state.vms.map( vm => { return vm.name } );
+          this.search.vms  = {names: state.vms.map( vm => { return vm.name } ),
+            ips: state.vms.map( vm => { return vm.ipv4.join()}), 
+            networks: state.vms.map( vm => { return vm.networksi.join()}), 
+            taps: state.vms.map( vm => { return vm.taps.join()})
+          };
+          //this.search.vms  = state.vms.map( vm => { return vm.name } );
           this.table.total = state.vm_count;
 
           this.updateTable(); 
