@@ -23,7 +23,6 @@
             </b-tooltip>
             {{ snap }}
           </p>
-        </p>
       </section>
       <footer class="modal-card-foot buttons is-right">
         <div v-if="adminUser()">
@@ -1068,33 +1067,13 @@
       },
     
       backingImage ( vm, name ) {
-        this.$buefy.dialog.confirm({
-          title: 'Create a Disk Image',
-          message: 'This will create a backing image for the ' + vm + ' VM.',
-          cancelText: 'Cancel',
-          confirmText: 'Create',
-          type: 'is-success',
-          hasIcon: true,
-          onConfirm: () => {
-            this.diskImageModal.active = false;
-            this.resetDiskImageModal();
+          this.diskImageModal.active = false;
+          this.resetDiskImageModal();
 
-            this.$http.post(          
-              'experiments/' + this.$route.params.id + '/vms/' + vm + '/commit',
-                { "filename": name  + '.qc2' }, { timeout: 0 }
-            ).then(
-              response => {
-                console.log('backing image for vm ' + vm + ' failed with ' + response.status);
-              }, response => {
-                this.$buefy.toast.open({
-                  message: 'Creating the backing image for the ' + vm + ' VM failed with ' + response.status + ' status.',
-                  type: 'is-danger',
-                  duration: 4000
-                });
-              }
-            );
-          }
-        })
+          this.$http.post(          
+            'experiments/' + this.$route.params.id + '/vms/' + vm + '/commit',
+              { "filename": name  + '.qc2' }, { timeout: 0 }
+          )
       },
 
       killVm ( name ) {
