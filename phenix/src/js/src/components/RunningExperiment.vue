@@ -14,7 +14,7 @@
           <p>Uptime: {{ expModal.vm.uptime | uptime }}</p>
           <p>Network(s): {{ expModal.vm.networks | stringify | lowercase }}</p>
           <p>Taps: {{ expModal.vm.taps | stringify | lowercase }}</p>
-          <p v-if="expModal.snapshots">
+          <p v-if="expModal.snapshots"></p>
             Snapshots:
             <br/>
           <p v-for="( snap, index ) in expModal.snapshots" :key="index">
@@ -22,52 +22,88 @@
               <b-icon icon="play-circle" style="color:#686868" @click.native="restoreSnapshot( expModal.vm.name, snap )"></b-icon>
             </b-tooltip>
             {{ snap }}
-          </p>
-        </p>
+          </p>        
       </section>
       <footer class="modal-card-foot buttons is-right">
-        <div v-if="adminUser()">
+        <div v-if="adminUser() && !showModifyStateBar">
           <template v-if="!expModal.vm.running">
-            <b-tooltip label="start a vm" type="is-light">
+            <b-tooltip label="start" type="is-light">
               <b-button class="button is-success" icon-left="play" @click="startVm( expModal.vm.name )">
               </b-button>
             </b-tooltip>
           </template>
           <template v-else>
-            <b-tooltip label="pause a vm" type="is-light">
+            <b-tooltip label="pause" type="is-light">
               <b-button class="button is-danger" icon-left="pause" @click="pauseVm( expModal.vm.name )">
               </b-button>
             </b-tooltip>
           </template>
         </div>
-        <div v-if="expModal.vm.running">
-          &nbsp; 
-          <b-tooltip label="create a snapshot" type="is-light">
-            <b-button class="button is-light" icon-left="camera" @click="captureSnapshot( expModal.vm.name )">
+        <div v-if="experimentUser() && !showModifyStateBar && expModal.vm.running">
+             &nbsp; 
+          <b-tooltip label="create memory snapshot" type="is-light">
+            <b-button class="button is-light" icon-left="database" @click="diskImage(expModal.vm.name)">
+             </b-button>
+          </b-tooltip>
+         </div>
+         <div v-if="experimentUser() && !showModifyStateBar && expModal.vm.running">
+              &nbsp; 
+          <b-tooltip label="create disk snapshot" type="is-light">
+            <b-button class="button is-light" icon-left="hdd-o" @click="diskImage(expModal.vm.name)">
             </b-button>
           </b-tooltip>
-        </div>
-        <div v-if="experimentUser()">
-          &nbsp; 
-          <b-tooltip label="create a backing image" type="is-light">
-            <b-button class="button is-light" icon-left="save" @click="diskImage( expModal.vm.name )">
-            </b-button>
-          </b-tooltip>
-        </div>
-        <div v-if="experimentUser()">
-          &nbsp; 
-          <b-tooltip label="redeploy a vm" type="is-light">
-            <b-button class="button is-warning" icon-left="power-off" @click="redeploy( expModal.vm.name )">
-            </b-button>
-          </b-tooltip>
-        </div>
-        <div v-if="experimentUser()">
-          &nbsp;
-          <b-tooltip label="kill a vm" type="is-light">
-            <b-button class="button is-danger" icon-left="trash" @click="killVm( expModal.vm.name )">
-            </b-button>
-          </b-tooltip>
-        </div>
+          </div>
+          <div v-if="experimentUser() && !showModifyStateBar && expModal.vm.running">
+              &nbsp; 
+             <b-tooltip label="record screenshot" type="is-light">
+               <b-button class="button is-light" icon-left="file-video-o" @click="diskImage(expModal.vm.name)">
+               </b-button>
+             </b-tooltip>
+           </div>
+            <div v-if="experimentUser() && !showModifyStateBar && expModal.vm.running">
+              &nbsp; 
+              <b-tooltip label="create vm snapshot" type="is-light">
+               <b-button class="button is-light" icon-left="camera" @click="captureSnapshot(expModal.vm.name)">
+               </b-button>
+              </b-tooltip>
+            </div>    
+            <div v-if="experimentUser() && !showModifyStateBar">
+              &nbsp; 
+              <b-tooltip label="modify state" type="is-light">
+               <b-button class="button is-light" icon-left="pencil" @click="showModifyStateBar = true">
+               </b-button>
+              </b-tooltip>
+            </div>               
+            <div v-if="experimentUser() && showModifyStateBar">
+                &nbsp; 
+              <b-tooltip label="redeploy" type="is-light">
+                <b-button class="button is-success" icon-left="history" @click="redeploy(expModal.vm.name)">
+                </b-button>
+              </b-tooltip>              
+               &nbsp;
+              <b-tooltip label="reset state" type="is-light">
+                 <b-button class="button is-success" icon-left="undo" @click="resetVmState(expModal.vm.name)">
+                 </b-button>
+              </b-tooltip>
+             
+                &nbsp;
+              <b-tooltip label="restart" type="is-light">
+                 <b-button class="button is-success" icon-left="refresh" @click="restartVm(expModal.vm.name)">
+                 </b-button>
+              </b-tooltip>
+             
+                &nbsp;              
+                <b-tooltip label="shutdown" type="is-light">
+                  <b-button class="button is-danger" icon-left="power-off" @click="shutdownVm(expModal.vm.name)">
+                  </b-button>
+                </b-tooltip>              
+             
+               &nbsp;
+               <b-tooltip label="close toolbar" type="is-light">
+                 <b-button class="button is-light" icon-left="window-close" @click="showModifyStateBar = false">
+                 </b-button>
+               </b-tooltip>
+             </div>
       </footer>
     </div>
   </b-modal>
@@ -100,18 +136,19 @@
         </footer>
       </div>
     </b-modal>
-    <b-modal :active.sync="redeployModal.active" :on-cancel="resetRedeployModal" has-modal-card>
-      <div class="modal-card" style="width:75em">
+    <b-modal :active.sync="redeployModal.active" :on-cancel="resetRedeployModal" has-modal-card ref="reDeploy">
+      <div class="modal-card" style="width:auto">
         <header class="modal-card-head">
           <p class="modal-card-title">Redeploy the VMs</p>
         </header>
         <section class="modal-card-body">
           <div v-if="redeployModal.vm.length > 0">
-           <div v-for="vmI in redeployModal.vm" :key="index" class="level">
-             <div class="level-item">
+           <div v-for="(vmI,index) in redeployModal.vm" :key="index" class="level">
+             <div class="level-item">               
                <font color="#202020">
+                 <hr v-if="parseInt(index) > 0" style="color:#595959;background-color:#595959">
                  Modify current settings and redeploy {{ vmI.name }}
-                 <p/>
+                 <br><br>
                  CPUs: 
                   <b-tooltip label="menu for assigning cpus" type="is-dark">
                     <b-select :value="vmI.cpus" expanded @input="( value ) => vmI.cpus = value">
@@ -139,7 +176,7 @@
                      <option value="16384">16 GB</option>
                    </b-select>
                  </b-tooltip>
-                &nbsp;
+                <br><br>
                 Disk:
                 <b-tooltip label="menu for assigning disk" type="is-dark">
                   <b-select :value="vmI.disk" @input="( value ) => vmI.disk = value">
@@ -151,7 +188,7 @@
                     </option>
                   </b-select>
                 </b-tooltip>
-                &nbsp;
+                <br><br>
                 Replicate Original Injection(s):
                 <b-tooltip label="menu for replicating injections" type="is-dark">
                   <b-select :value="vmI.inject" expanded @input="( value ) => vmI.inject = value">
@@ -159,12 +196,17 @@
                     <option value="false">No</option>
                   </b-select>
                 </b-tooltip>
+                 
               </font>
-             </div>
+             </div> 
            </div>
           </div>
         </section>
         <footer class="modal-card-foot buttons is-right">
+           <button class="button" type="button" 
+              @click="closeModal('reDeploy')">
+              Cancel
+           </button>             
           <button class="button is-success" 
             @click="redeployVm( redeployModal.vm )">
             Redeploy
@@ -172,28 +214,33 @@
         </footer>
       </div>
     </b-modal>
-    <b-modal :active.sync="diskImageModal.active" has-modal-card :on-cancel="resetDiskImageModal">
-      <div class="modal-card" style="width:75em">
+    <b-modal :active.sync="diskImageModal.active" has-modal-card :on-cancel="resetDiskImageModal" ref="diskImage">
+      <div class="modal-card" style="width:auto">
         <header class="modal-card-head">
           <p class="modal-card-title">Create a Disk Image</p>
         </header>
         <section class="modal-card-body">
-			<div v-if="diskImageModal.vm.length > 0">
-				<div v-for="vmI in diskImageModal.vm" :key="index" class="level">
-                                 <div class=level-item>
-				  <font color="#202020">
-					Create disk image of the {{ vmI.name }} VM with filename:
-				  </font>
-                                  &nbsp;
-				  <b-field :type="vmI.nameErrType" :message="vmI.nameErrMsg" autofocus>
-					<b-input type="text" v-model="vmI.filename"   focus></b-input>
-				  </b-field>
-                                 </div>
-				</div>
-			</div>
-        </section>
+         <div v-if="diskImageModal.vm.length > 0">
+              <div v-for="(vmI,index) in diskImageModal.vm" :key="index" class="level">
+                 <div class="level-item">             
+                  <font color="#202020">
+                    <hr v-if="parseInt(index) > 0" style="color:#595959;background-color:#595959">
+                        Create disk image of the {{ vmI.name }} VM with filename:                 
+                        <br><br>
+                        <b-field :type="vmI.nameErrType" :message="vmI.nameErrMsg" autofocus>
+                          <b-input type="text" v-model="vmI.filename"   focus></b-input>
+                         </b-field>
+                  </font>           
+                </div>                                 
+              </div>
+          </div>
+        </section>        
         <footer class="modal-card-foot buttons is-right">
-          <button class="button is-success" :disabled="!validate" @click="backingImage(diskImageModal.vm)">
+          <button class="button" type="button" 
+              @click="closeModal('diskImage')">
+              Cancel
+        </button>  
+          <button class="button is-success" :disabled="!validate()" @click="backingImage(diskImageModal.vm)">
             Create
           </button>
         </footer>
@@ -215,55 +262,94 @@
           </b-tag>
         </b-taglist>
       </div>
-    </div>
-    <div class="level" style="margin-bottom: 2em;">
-     <div class="level-left">
-      <div class="level-item">
+    </div>    
+    
+    <div class="level">    
+      <div class="level-left"></div>
+      <div class="level-right">
+        <div class="level-item" style="margin-bottom: -.3em;">
         <b-field v-if="isMultiVmSelected() && (experimentUser() || experimentViewer())" position="is-center">
-            <div v-if="adminUser()">
-                <b-tooltip label="start selected vms" type="is-light">
+            <div v-if="adminUser() && !showModifyStateBar">
+                <b-tooltip label="start" type="is-light">
                   <b-button class="button is-success" icon-left="play" @click="processMultiVmAction(vmActions.start)">
                   </b-button>
                 </b-tooltip>
                 &nbsp;
-                <b-tooltip label="pause selected vm" type="is-light">
-                  <b-button class="button is-danger" icon-left="pause" @click="processMultiVmAction(vmActions.pause)">
+                <b-tooltip label="pause" type="is-light">
+                  <b-button class="button is-warning" icon-left="pause" @click="processMultiVmAction(vmActions.pause)">
                  </b-button>
                 </b-tooltip>
             </div>
-            <div>
+          <div v-if="experimentUser() && !showModifyStateBar">
               &nbsp; 
-              <b-tooltip label="create selected snapshots" type="is-light">
+              <b-tooltip label="create memory snapshot" type="is-light">
+                <b-button class="button is-light" icon-left="database" @click="processMultiVmAction(vmActions.createBacking)">
+                </b-button>
+              </b-tooltip>
+            </div>
+            <div v-if="experimentUser() && !showModifyStateBar">
+              &nbsp; 
+              <b-tooltip label="create disk snapshot" type="is-light">
+                <b-button class="button is-light" icon-left="hdd-o" @click="processMultiVmAction(vmActions.createBacking)">
+                </b-button>
+              </b-tooltip>
+            </div>
+            <div v-if="experimentUser() && !showModifyStateBar">
+              &nbsp; 
+              <b-tooltip label="record screenshot" type="is-light">
+                <b-button class="button is-light" icon-left="file-video-o" @click="processMultiVmAction(vmActions.createBacking)">
+                </b-button>
+              </b-tooltip>
+            </div>
+            <div v-if="experimentUser() && !showModifyStateBar">
+              &nbsp; 
+              <b-tooltip label="create vm snapshot" type="is-light">
                <b-button class="button is-light" icon-left="camera" @click="processMultiVmAction(vmActions.captureSnapshot)">
                </b-button>
               </b-tooltip>
-            </div>
-            <div v-if="experimentUser()">
+            </div>    
+            <div v-if="experimentUser() && !showModifyStateBar">
               &nbsp; 
-              <b-tooltip label="create selected backing images" type="is-light">
-                <b-button class="button is-light" icon-left="save" @click="processMultiVmAction(vmActions.createBacking)">
-                </b-button>
+              <b-tooltip label="modify state" type="is-light">
+               <b-button class="button is-light" icon-left="pencil" @click="showModifyStateBar = true">
+               </b-button>
               </b-tooltip>
-            </div>
-            <div v-if="experimentUser()">
-              &nbsp; 
-              <b-tooltip label="redeploy selected vms" type="is-light">
-                <b-button class="button is-warning" icon-left="power-off" @click="processMultiVmAction(vmActions.redeploy)">
-                </b-button>
-              </b-tooltip>
-            </div>
-            <div v-if="experimentUser()">
-              &nbsp;
-              <b-tooltip label="kill selected vms" type="is-light">
-                <b-button class="button is-danger" icon-left="trash" @click="processMultiVmAction(vmActions.kill)">
-                </b-button>
-              </b-tooltip>
-            </div>
+            </div>               
+              <div v-if="experimentUser() && showModifyStateBar">
+                &nbsp; 
+                <b-tooltip label="redeploy" type="is-light">
+                  <b-button class="button is-success" icon-left="history" @click="processMultiVmAction(vmActions.redeploy)">
+                  </b-button>
+                </b-tooltip>              
+                &nbsp;
+                <b-tooltip label="reset state" type="is-light">
+                  <b-button class="button is-success" icon-left="undo" @click="processMultiVmAction(vmActions.resetState)">
+                  </b-button>
+                </b-tooltip>
+             
+                &nbsp;
+                <b-tooltip label="restart" type="is-light">
+                  <b-button class="button is-success" icon-left="refresh" @click="processMultiVmAction(vmActions.restart)">
+                  </b-button>
+                </b-tooltip>
+             
+                &nbsp;
+                <b-tooltip label="shutdown" type="is-light">
+                  <b-button class="button is-danger" icon-left="power-off" @click="processMultiVmAction(vmActions.shutdown)">
+                  </b-button>
+                </b-tooltip>
+             
+                &nbsp;
+                <b-tooltip label="close toolbar" type="is-light">
+                  <b-button class="button is-light" icon-left="window-close" @click="showModifyStateBar = false">
+                  </b-button>
+                </b-tooltip>
+             </div>
+                                                                                                                                                                                                                     
         </b-field>
        </div>
-      </div>
-      <div class="level-right">
-       <div class="level-item" style="margin-top: 1em;">
+        &nbsp;&nbsp;
+       <div class="level-item" style="margin-bottom: -1em;">
         <b-field v-if="experimentUser() || experimentViewer()" position="is-right">
           <b-autocomplete
             v-model="search.filter"
@@ -311,8 +397,8 @@
               </section>
             </template>
             <template slot-scope="props">
-               <b-table-column field="multiselect" label="">
-                <template v-if="!props.row.redeploying">
+               <b-table-column field="multiselect" label="Select">
+                <template v-if="!props.row.busy">
                   <div>
                     <input type="checkbox" name="multiVmCb" @click="vmSelected ( props.row.name )" >
                   </div>
@@ -324,7 +410,7 @@
               <b-table-column field="name" label="VM Name" width="150" sortable centered>
                 <template v-if="experimentUser()">
                   <b-tooltip label="start/stop/redeploy the vm" type="is-dark">
-                    <span class="tag is-medium" :class="decorator( props.row.running, props.row.redeploying )">
+                    <span class="tag is-medium" :class="decorator( props.row.state, props.row.busy )">
                       <div class="field">
                         <div @click="getInfo( props.row )">
                           {{ props.row.name }}
@@ -335,7 +421,7 @@
                 </template>
                 <template v-else>
                   <b-tooltip label="get info for the vm" type="is-dark">
-                    <span class="tag is-medium" :class="decorator( props.row.running, !props.row.redeploying )">
+                    <span class="tag is-medium" :class="decorator( props.row.running, !props.row.busy )">
                       <div class="field">
                         <div @click="expModal.active = true; expModal.vm = props.row">
                           {{ props.row.name }}
@@ -344,13 +430,13 @@
                     </span>
                   </b-tooltip>
                 </template>
-                <section v-if="props.row.redeploying">
+                <section v-if="props.row.busy">
                   <p />
                   <b-progress size="is-small" type="is-warning" show-value :value=props.row.percent format="percent"></b-progress>
                 </section>
               </b-table-column>
               <b-table-column field="screenshot" label="Screenshot">
-                <template v-if="props.row.running && !props.row.redeploying && !props.row.screenshot">
+                <template v-if="props.row.running && !props.row.busy && !props.row.screenshot">
                   <a :href="'/api/v1/experiments/' 
                     + $route.params.id 
                     + '/vms/' 
@@ -360,7 +446,7 @@
                     <img src="@/assets/not-available.png">
                   </a>
                 </template>
-                <template v-else-if="props.row.running && !props.row.redeploying && props.row.screenshot">
+                <template v-else-if="props.row.running && !props.row.busy && props.row.screenshot">
                   <a :href="'/api/v1/experiments/' 
                     + $route.params.id 
                     + '/vms/' 
@@ -370,8 +456,10 @@
                     <img :src="props.row.screenshot">
                   </a>
                 </template>
-                <template v-else-if="props.row.redeploying">
-                  <img src="@/assets/redeploying.png">
+                <template v-else-if="props.row.busy">
+                  <b-tooltip label="Screenshot not available while busy with action" type="is-light">
+                  <img src="@/assets/not-available.png">
+                  </b-tooltip>
                 </template>
                 <template v-else>
                   <img src="@/assets/not-running.png">
@@ -381,17 +469,29 @@
                 {{ props.row.host }}
               </b-table-column>    
               <b-table-column field="ipv4" label="IPv4" width="150">
-                <div v-for="ip in props.row.ipv4">
-                  {{ ip }}
+               <template v-if="experimentUser() && props.row.running && !props.row.busy"> 
+                <b-tooltip label="start packet capture" type="is-dark">
+                <div class="field">
+                  <div v-for="(ip,index) in props.row.ipv4"
+                     :class="tapDecorator( props.row.captures, index )" 
+                     :key="index" 
+                     @click="handlePcap( props.row, index )">
+                    {{ ip }}
+                  </div>
                 </div>
+                </b-tooltip>
+               </template>
+               <template v-else>
+                  {{ props.row.ipv4 | stringify | lowercase }}
+               </template>
               </b-table-column>
               <b-table-column field="network" label="Network">
-                <template v-if="experimentUser() && props.row.running">
+                <template v-if="experimentUser() && props.row.running && !props.row.busy">                  
                   <b-tooltip label="change vlan(s)" type="is-dark">
                     <div class="field">
                       <div v-for="( n, index ) in props.row.networks" 
                         :key="index" 
-                        @click="vlanModal.active = true; 
+                        @click="vlanModal.active = true 
                         vlanModal.vmName = props.row.name; 
                         vlanModal.vmFromNet = n; 
                         vlanModal.vmNet = props.row.networks; 
@@ -406,8 +506,8 @@
                 </template>
               </b-table-column>
               <b-table-column field="taps" label="Taps">
-                <template v-if="experimentUser() && props.row.running">
-                  <b-tooltip label="manage pcap" type="is-dark">
+                <template v-if="experimentUser() && props.row.running && !props.row.busy">
+                  <b-tooltip label="start packet capture" type="is-dark">
                     <div class="field">
                       <div v-for="( t, index ) in props.row.taps" 
                         :class="tapDecorator( props.row.captures, index )" 
@@ -492,22 +592,7 @@
         }
 
         return true;
-      },
-
-      validate () {
-        var regexp = /^[a-zA-Z0-9-_]*$/;
-        for ( let i = 0; i < this.diskImageModal.vm.length; i++ ) {
-			if ( !regexp.test( this.diskImageModal.vm[i].filename ) ) {
-			  this.diskImageModal.vm[i].nameErrType = 'is-danger';
-			  this.diskImageModal.vm[i].nameErrMsg  = 'image names can only contain alphanumeric, dash, and underscore; we will add the file extension';
-			  return false;
-			}
-
-			this.diskImageModal.vm[i].nameErrType = '';
-			this.diskImageModal.vm[i].nameErrMsg = '';
-		}
-        return true;
-      },
+      }      
       
     },
 
@@ -611,8 +696,7 @@
               case 'update': {
                 for ( let i = 0; i < vms.length; i++ ) {
                   if ( vms[i].name == msg.result.name ) {
-                    vms[i] = msg.result;
-
+                    vms[i] = msg.result;                   
                     break;
                   }
                 }
@@ -655,6 +739,11 @@
 
               case 'redeploying': {
                 break;
+              }
+                    
+              case 'shutdown':{                
+                break;
+                    
               }
 
               case 'redeployed': {
@@ -703,7 +792,7 @@
               case 'commit': {
                 for ( let i = 0; i < vms.length; i++ ) {
                   if ( vms[i].name == vm[ 1 ] ) {
-                    vms[i].redeploying = false;
+                    vms[i].busy = false;
                     vms[i] = msg.result.vm;
 
                       let disk = msg.result.disk;
@@ -728,7 +817,7 @@
 
                 for ( let i = 0; i < vms.length; i++ ) {
                   if ( vms[i].name == vm[ 1 ] ) {
-                    vms[i].redeploying = true;
+                    vms[i].busy = true;
                     vms[i].percent = 0;
 
                     let disk = msg.result.disk;
@@ -757,7 +846,7 @@
 
                 for ( let i = 0; i < vms.length; i++ ) {
                   if ( vms[i].name == vm[ 1 ] ) {
-                    vms[i].redeploying = true; //incase committing message is missed
+                    vms[i].busy = true; //incase committing message is missed
                     vms[i].percent = percent;
 
                     this.experiment.vms = [ ... vms ];
@@ -856,7 +945,7 @@
               case 'create': {
                 for ( let i = 0; i < vms.length; i++ ) {
                   if ( vms[i].name == vm[ 1 ] ) {
-                    vms[i].redeploying = false;
+                    vms[i].busy = false;
                 
                     this.$buefy.toast.open({
                       message: 'The snapshot for the ' + vm[ 1 ] + ' VM was successfully created.',
@@ -874,7 +963,7 @@
               case 'creating': {
                 for ( let i = 0; i < vms.length; i++ ) {
                   if ( vms[i].name == vm[ 1 ] ) {
-                    vms[i].redeploying = true;
+                    vms[i].busy = true;
                     vms[i].percent = 0;
                 
                     this.$buefy.toast.open({
@@ -909,7 +998,7 @@
               case 'restore': {
                 for ( let i = 0; i < vms.length; i++ ) {
                   if ( vms[i].name == vm[ 1 ] ) {
-                    vms[i].redeploying = false;
+                    vms[i].busy = false;
               
                     this.$buefy.toast.open({
                       message: 'The ' + vm[ 1 ] + ' VM was successfully reverted to a previous snapshot.',
@@ -927,7 +1016,7 @@
               case 'restoring': {
                 for ( let i = 0; i < vms.length; i++ ) {
                   if ( vms[i].name == vm[ 1 ] ) {
-                    vms[i].redeploying = true;
+                    vms[i].busy = true;
                     vms[i].percent = 0;
                 
                     this.$buefy.toast.open({
@@ -1027,7 +1116,15 @@
       },
 
       getInfo ( vm ) {
-        if ( !vm.redeploying ) {
+        if(vm.busy){
+          this.$buefy.dialog.alert({
+            title: 'VM Busy',
+            message: ['VM',vm.name,'is currently busy and not available for another action'].join(' '),
+            confirmText: 'Ok'
+          })      
+          return
+        }
+        
           this.$http.get(
             'experiments/' + this.$route.params.id + '/vms/' + vm.name + '/snapshots'
           ).then(
@@ -1052,7 +1149,7 @@
 
           this.expModal.vm = vm;
           this.expModal.active = true;
-        }
+        
       },
 
       snapshots ( vm ) {
@@ -1103,18 +1200,18 @@
           onConfirm: () => {
             this.expModal.active = false;
             this.resetExpModal(); 
-            name.forEach((arg,) => { 
+            name.forEach((vmName) => { 
               this.$http.post(
-                'experiments/' + this.$route.params.id + '/vms/' + arg + '/snapshots',
+                'experiments/' + this.$route.params.id + '/vms/' + vmName + '/snapshots',
                 { "filename": time }, { timeout: 0 }
               ).then(
                 response => {
                   if ( response.status == 204 ) {
-                    console.log('create snapshot for vm ' + arg);
+                    console.log('create snapshot for vm ' + vmName);
                   }
                 }, response => {
                   this.$buefy.toast.open({
-                    message: 'Creating the snapshot for the ' + arg + ' VM failed with ' + response.status + ' status.',
+                    message: 'Creating the snapshot for the ' + vmName + ' VM failed with ' + response.status + ' status.',
                     type: 'is-danger',
                     duration: 4000
                   });
@@ -1175,15 +1272,15 @@
           name = [name];
         }
         let vms = this.experiment.vms;
-        name.forEach((arg,) => {
+        name.forEach((vmName) => {
           for ( let i = 0; i < vms.length; i++ ) {
-            if ( vms[i].name == arg ){
-			  var filename=""; 
-			  if ( /(.*)_\d{14}/.test( vms[i].disk ) ) {
-			    filename = vms[i].disk.substring( 0, vms[i].disk.indexOf( '_' ) ) + '_' + date + time;
-			  } else {
-			    filename = vms[i].disk.substring( 0, vms[i].disk.indexOf( '.' ) ) + '_' + date + time;
-			  }
+            if ( vms[i].name == vmName ){
+              var filename=""; 
+              if ( /(.*)_\d{14}/.test( vms[i].disk ) ) {
+                filename = vms[i].disk.substring( 0, vms[i].disk.indexOf( '_' ) ) + '_' + date + time;
+              } else {
+                filename = vms[i].disk.substring( 0, vms[i].disk.indexOf( '.' ) ) + '_' + date + time;
+              }
                           filename = vms[i].name +"_"+ filename.substring(filename.lastIndexOf( '/')+1 ); 
                           this.diskImageModal.vm.push({
                             dateTime:date+time+"" ,
@@ -1192,41 +1289,29 @@
                             nameErrType:"" ,
                             nameErrMsg:""
                           });
-			}
-		  }
+            }
+          }
         })
-        this.expModal.active = false;
+        
         this.diskImageModal.active = true;
       },
     
-      backingImage (vm) {
-        let vmList = "";
-        vm.forEach((arg,) => {
-          vmList = vmList + arg.name + ", ";
-        })
-	vmList = vmList.slice(0,-2)
-	this.$buefy.dialog.confirm({
-          title: 'Create a Disk Images',
-          message: 'This will create a backing image for the VMs ' + vmList,
-          cancelText: 'Cancel',
-          confirmText: 'Create',
-          type: 'is-success',
-          hasIcon: true,
-          onConfirm: () => {
-            this.diskImageModal.active = false;
-            this.resetDiskImageModal();
-            let url = "";
-            let name = "";
-            let body = "";
-	    vm.forEach((arg,) => {
-              url = 'experiments/' + this.$route.params.id + '/vms/' + arg.name + '/commit';
-              body = { "filename": arg.filename  + '.qc2' };
-              name = arg.name;
+      backingImage (vms) {
             
-              this.$http.post(url,body,{ timeout: 0 }).then(
-                response => {
-                   console.log('backing image for vm ' + name + ' failed with ' + response.status);
-                }, response => {
+        this.diskImageModal.active = false;
+        
+        let url = "";
+        let name = "";
+        let body = "";
+        vms.forEach((vm) => {
+          url = 'experiments/' + this.$route.params.id + '/vms/' + vm.name + '/commit';
+          body = { "filename": vm.filename  + '.qc2' };
+          name = vm.name;
+            
+          this.$http.post(url,body,{ timeout: 0 }).then(
+             response => {
+                 console.log('backing image for vm ' + name + ' failed with ' + response.status);
+             }, response => {
                   this.$buefy.toast.open({
                      message: 'Creating the backing image for the ' + name + ' VM failed with ' + response.status + ' status.',
                      type: 'is-danger',
@@ -1235,42 +1320,40 @@
                 }
               );
             })
-	  }
-        })
+        
+        this.resetDiskImageModal();
       },
 
       killVm ( name ) {
         if (! Array.isArray(name)) {
           name = [name];
         }
-        let vmList = "";
-        let vmExcludeList = "";
+        let vmList = [];
+        let vmExcludeList = [];
         let vms = this.experiment.vms;
-        name.forEach((arg,) => {
+        name.forEach((vmName) => {
           for ( let i = 0; i < vms.length; i++ ) {
-            if ( vms[i].name == arg ){
+            if ( vms[i].name == vmName ){
               if( vms[i].running ) {
-                vmList = vmList + arg + ", ";
+                vmList.push(vmName)
               } else {
-                vmExcludeList = vmExcludeList + arg +", ";
+                vmExcludeList.push(vmName)
               }
             } 
           }
         })
-        if ( vmExcludeList.length > 1) {
-          vmExcludeList = vmExcludeList.slice(0,-2);
+        if ( vmExcludeList.length > 0) {          
           this.$buefy.dialog.alert({
             title: 'No Action',
-            message: 'VMs '+ vmExcludeList +' are either paused or killed',
+            message: 'VMs '+ vmExcludeList.join() +' are either paused or killed',
             confirmText: 'Ok'
           })
         }
-        if (vmList.length >1) { 
-          vmList = vmList.slice(0,-2)
+        if (vmList.length >0) {          
           this.$buefy.dialog.confirm({
             title: 'Kill the VMs',
             message: 'This will kill the VMs' 
-            + vmList 
+            + vmList.join() 
             + '. You will not be able to restore this VM until you restart the ' 
             + this.$route.params.id 
             + ' experiment!',
@@ -1279,16 +1362,17 @@
             type: 'is-danger',
             hasIcon: true,
             onConfirm: () => {
+              this.resetExpModal();
               this.isWaiting= true;
-              name.forEach((arg,) => {
+              name.forEach((vmName) => {
                 this.$http.delete(
-                'experiments/' + this.$route.params.id + '/vms/' + arg
+                'experiments/' + this.$route.params.id + '/vms/' + vmName
                 ).then(
                   response => {
                     if ( response.status == 204 ) {
                       let vms = this.experiment.vms;
                       for ( let i = 0; i < vms.length; i++ ) {
-                        if ( vms[i].name == arg ) {
+                        if ( vms[i].name == vmName ) {
                           vms.splice( i, 1 );
                           break;
                         }
@@ -1298,7 +1382,7 @@
                     }
                   }, response => {
                     this.$buefy.toast.open({
-                      message: 'Killing the ' + arg + ' VM failed with ' + response.status + ' status.',
+                      message: 'Killing the ' + vmName + ' VM failed with ' + response.status + ' status.',
                       type: 'is-danger',
                       duration: 4000
                     });
@@ -1309,8 +1393,7 @@
             }
           })
         }
-        this.expModal.active = false;
-        this.resetExpModal();
+                
       },
 
       stop () {      
@@ -1328,7 +1411,7 @@
               'experiments/' + this.$route.params.id + '/stop' 
             ).then(
               () => {
-                this.$router.replace('/experiments/');
+                this.$router.replace('/experiments/');                
               }, response => {
                 this.$buefy.toast.open({
                   message: 'Stopping experiment ' + this.$route.params.id + ' failed with ' + response.status + ' status.',
@@ -1343,15 +1426,25 @@
         })
       },
 
-      decorator ( running, redeploying ) {
-        if ( redeploying ) {
+      decorator ( state, busy ) {
+        if ( busy ) {
           return 'is-warning'
         }
 
-        if ( running ) {
-          return 'is-success'
-        } else {
-          return 'is-danger'
+        switch (state) {
+          case "RUNNING":
+            return 'is-success'
+            
+            
+          case "PAUSED":
+            return 'is-warning'
+            
+            
+          case "QUIT":
+            return 'is-danger'
+             
+             
+            
         }
       },
 
@@ -1365,7 +1458,8 @@
         }
       },
 
-      handlePcap ( vm, iface ) {
+      handlePcap ( vm, iface ) {  
+        
         var dateTime = new Date();
         var time = dateTime.getFullYear() 
           + '-' 
@@ -1499,43 +1593,42 @@
         if (! Array.isArray(name)) {
           name = [name];
         }
-        let vmList = "";
-        let vmExcludeList = "";
+        let vmList = [];
+        let vmExcludeList = [];
         let vms = this.experiment.vms;
-        name.forEach((arg,) => {
+        name.forEach((vmName) => {
           for ( let i = 0; i < vms.length; i++ ) 
           {
-            if ( vms[i].name == arg ){
+            if ( vms[i].name == vmName ){
               if( !vms[i].running ) {
-                vmList = vmList + arg + ", ";
+                vmList.push(vmName)
               } else {
-                vmExcludeList = vmExcludeList + arg +", ";
+                vmExcludeList.push(vmName)
               }
             } 
           }
         })
-        if ( vmExcludeList.length > 1) {
-          vmExcludeList = vmExcludeList.slice(0,-2);
+        if ( vmExcludeList.length > 0) {          
           this.$buefy.dialog.alert({
             title: 'No Action',
-            message: 'VMs '+ vmExcludeList +' are already running',
+            message: 'VMs '+ vmExcludeList.join() +' are already running',
             confirmText: 'Ok'
           })
         }
-        if (vmList.length >1) { 
-          vmList = vmList.slice(0,-2);
+        if (vmList.length >0) {         
           this.$buefy.dialog.confirm({
             title: 'Start the VMs',
-            message: 'This will start the VMs ' + vmList,
+            message: 'This will start the VMs ' + vmList.join(),
             cancelText: 'Cancel',
             confirmText: 'Start',
             type: 'is-success',
             hasIcon: true,
             onConfirm: () => {
               this.isWaiting = true;
-               name.forEach((arg,) => { 
+              this.resetExpModal();
+               name.forEach((vmName) => { 
                  this.$http.post(
-                   'experiments/' + this.$route.params.id + '/vms/' + arg + '/start' 
+                   'experiments/' + this.$route.params.id + '/vms/' + vmName + '/start' 
                  ).then(
                    response => {
                      let vms = this.experiment.vms;
@@ -1549,7 +1642,7 @@
                     this.isWaiting = false;
                   }, response => {
                     this.$buefy.toast.open({
-                      message: 'Starting the ' + arg + ' VM failed with ' + response.status + ' status.',
+                      message: 'Starting the ' + vmName + ' VM failed with ' + response.status + ' status.',
                       type: 'is-danger',
                       duration: 4000
                     });
@@ -1560,50 +1653,48 @@
             }
           })
         }
-        this.expModal.active = false;
-        this.resetExpModal();
+                
       },
    
       pauseVm (name) {
         if (! Array.isArray(name)) {
           name = [name];
         }  
-        let vmList = "";
-        let vmExcludeList = "";
+        let vmList = [];
+        let vmExcludeList = [];
         let vms = this.experiment.vms;
-        name.forEach((arg,) => {
+        name.forEach((vmName) => {
           for ( let i = 0; i < vms.length; i++ ) {
-            if ( vms[i].name == arg ){
+            if ( vms[i].name == vmName ){
               if( vms[i].running ) {
-                vmList = vmList + arg + ", ";
+                vmList.push(vmName)
               } else {
-                vmExcludeList = vmExcludeList + arg + ", ";
+                vmExcludeList.push(vmName)
               }
             } 
           }
         })
-        if ( vmExcludeList.length > 1) {
-          vmExcludeList = vmExcludeList.slice(0,-2);
+        if ( vmExcludeList.length > 0) {          
           this.$buefy.dialog.alert({
             title: 'No Action',
-            message: 'VMs ' + vmExcludeList +' are already paused',
+            message: 'VMs ' + vmExcludeList.join() +' are already paused',
             confirmText: 'Ok'
           })
         } 
-        if (vmList.length > 1) {
-          vmList = vmList.slice(0,-2);
+        if (vmList.length > 0) {          
           this.$buefy.dialog.confirm({
             title: 'Pause the VMs',
-            message: 'This will pause the VMs ' + vmList,
+            message: 'This will pause the VMs ' + vmList.join(),
             cancelText: 'Cancel',
             confirmText: 'Pause',
             type: 'is-success',
             hasIcon: true,
             onConfirm: () => {
               this.isWaiting = true;
-              name.forEach((arg,) => { 
+              this.resetExpModal();
+              name.forEach((vmName) => { 
                 this.$http.post(
-                  'experiments/' + this.$route.params.id + '/vms/' + arg + '/stop' 
+                  'experiments/' + this.$route.params.id + '/vms/' + vmName + '/stop' 
                 ).then(
                   response => {
                     let vms = this.experiment.vms;
@@ -1617,7 +1708,7 @@
                     this.isWaiting = false;
                   }, response => {
                     this.$buefy.toast.open({
-                      message: 'Pauseing the ' + arg + ' VM failed with ' + response.status + ' status.',
+                      message: 'Pausing the ' + vmName + ' VM failed with ' + response.status + ' status.',
                       type: 'is-danger',
                       duration: 4000
                     });
@@ -1628,8 +1719,212 @@
             }      
           })
         }
-        this.expModal.active = false;
-        this.resetExpModal();
+        
+      },
+        
+      resetVmState (name) {
+        if (! Array.isArray(name)) {
+          name = [name];
+        } 
+        
+        let vmList = [];
+        let vmExcludeList = [];
+        let vms = this.experiment.vms;
+        name.forEach((vmName) => {
+          for ( let i = 0; i < vms.length; i++ ) {
+            if ( vms[i].name == vmName ){
+              if( vms[i].state.toUpperCase() != "PAUSED" ) {
+                vmList.push(vmName)
+              } else {
+                vmExcludeList.push(vmName)
+              }
+            } 
+          }
+        })
+        if ( vmExcludeList.length > 0) {          
+          this.$buefy.dialog.alert({
+            title: 'No Action',
+            message: 'VMs ' + vmExcludeList.join() +' are currently paused.  Unable to reset paused VMs',
+            confirmText: 'Ok'
+          })
+        } 
+        
+        if (vmList.length > 0) {
+          this.$buefy.dialog.confirm({
+              title: 'Reset VMs Disk State',
+              message: 'This will reset the disk state for VMs ' + name.join(),
+              cancelText: 'Cancel',
+              confirmText: 'Reset',
+              type: 'is-success',
+              hasIcon: true,
+              onConfirm: () => {
+                this.isWaiting = true; 
+                this.resetExpModal();
+                name.forEach((vmName) => { 
+                  this.$http.get(
+                    'experiments/' + this.$route.params.id + '/vms/' + vmName + '/reset' 
+                  ).then(
+                    response => {
+                      let vms = this.experiment.vms;
+                      for ( let i = 0; i < vms.length; i++ ) {
+                        if ( vms[i].name == response.body.name ) {
+                          vms[i] = response.body;
+                          break;
+                        }
+                      } 
+                      this.experiment.vms = [ ...vms ];
+                      this.isWaiting = false;
+                    }, response => {
+                      this.$buefy.toast.open({
+                        message: 'Reseting the ' + vmName + ' VM failed with ' + response.status + ' status.',
+                        type: 'is-danger',
+                        duration: 4000
+                      });
+                      this.isWaiting = false;
+                    } 
+                  );
+                })        
+            }
+          })
+        }
+             
+      },
+        
+      restartVm (name) {
+        if (! Array.isArray(name)) {
+          name = [name];
+        } 
+        
+        let vmList = [];
+        let vmExcludeList = [];
+        let vms = this.experiment.vms;
+        name.forEach((vmName) => {
+          for ( let i = 0; i < vms.length; i++ ) {
+            if ( vms[i].name == vmName ){
+              if( vms[i].state.toUpperCase() != "PAUSED" ) {
+                vmList.push(vmName)
+              } else {
+                vmExcludeList.push(vmName)
+              }
+            } 
+          }
+        })
+        if ( vmExcludeList.length > 0) {          
+          this.$buefy.dialog.alert({
+            title: 'No Action',
+            message: 'VMs ' + vmExcludeList.join() +' are currently paused.  Unable to restart paused VMs',
+            confirmText: 'Ok'
+          })
+        } 
+        
+        if (vmList.length > 0) {
+          this.$buefy.dialog.confirm({
+              title: 'Restart the VMs',
+              message: 'This will restart the VMs ' + name.join(),
+              cancelText: 'Cancel',
+              confirmText: 'Restart',
+              type: 'is-success',
+              hasIcon: true,
+              onConfirm: () => {
+                this.isWaiting = true; 
+                this.resetExpModal();
+                name.forEach((vmName) => { 
+                  this.$http.get(
+                    'experiments/' + this.$route.params.id + '/vms/' + vmName + '/restart' 
+                  ).then(
+                    response => {
+                      let vms = this.experiment.vms;
+                      for ( let i = 0; i < vms.length; i++ ) {
+                        if ( vms[i].name == response.body.name ) {
+                          vms[i] = response.body;
+                          break;
+                        }
+                      } 
+                      this.experiment.vms = [ ...vms ];
+                      this.isWaiting = false;
+                    }, response => {
+                      this.$buefy.toast.open({
+                        message: 'Restarting the ' + vmName + ' VM failed with ' + response.status + ' status.',
+                        type: 'is-danger',
+                        duration: 4000
+                      });
+                      this.isWaiting = false;
+                    } 
+                  );
+                })        
+            }
+          })
+        }
+             
+      },
+        
+      shutdownVm (name) {
+        if (! Array.isArray(name)) {
+          name = [name];
+        } 
+        
+        let vmList = [];
+        let vmExcludeList = [];
+        let vms = this.experiment.vms;
+        name.forEach((vmName) => {
+          for ( let i = 0; i < vms.length; i++ ) {
+            if ( vms[i].name == vmName ){
+              if( vms[i].running ) {
+                vmList.push(vmName)
+              } else {
+                vmExcludeList.push(vmName)
+              }
+            } 
+          }
+        })
+        if ( vmExcludeList.length > 0) {          
+          this.$buefy.dialog.alert({
+            title: 'No Action',
+            message: 'VMs ' + vmExcludeList.join() +' are not running.  Unable to shutdown vms that are not running',
+            confirmText: 'Ok'
+          })
+        } 
+        
+        if (vmList.length > 0) {
+          this.$buefy.dialog.confirm({
+              title: 'Shutdown the VMs',
+              message: 'This will shutdown the VMs ' + name.join(),
+              cancelText: 'Cancel',
+              confirmText: 'Shutdown',
+              type: 'is-danger',
+              hasIcon: true,
+              onConfirm: () => {
+                this.isWaiting = true;   
+                this.resetExpModal();
+                name.forEach((vmName) => { 
+                  this.$http.get(
+                    'experiments/' + this.$route.params.id + '/vms/' + vmName + '/shutdown' 
+                  ).then(
+                    response => {
+                      let vms = this.experiment.vms;
+                      for ( let i = 0; i < vms.length; i++ ) {
+                        if ( vms[i].name == response.body.name ) {
+                          vms[i] = response.body;                          
+                          vms[i].running = false;
+                          break;
+                        }
+                      } 
+                      this.experiment.vms = [ ...vms ];                      
+                      this.isWaiting = false;
+                    }, response => {
+                      this.$buefy.toast.open({
+                        message: 'Restarting the ' + vmName + ' VM failed with ' + response.status + ' status.',
+                        type: 'is-danger',
+                        duration: 4000
+                      });
+                      this.isWaiting = false;
+                    } 
+                  );
+                })        
+            }
+          })
+        }
+            
       },
       
       redeploy ( vm ) {
@@ -1638,9 +1933,9 @@
         }
         this.updateDisks();
         let vms = this.experiment.vms;
-        vm.forEach((arg,_) => {
+        vm.forEach((vmName) => {
           for ( let i = 0; i < vms.length; i++ ) {
-            if ( vms[i].name == arg ) {
+            if ( vms[i].name == vmName ) {
               this.redeployModal.vm.push({
                 name:vms[i].name,
                 cpus:vms[i].cpus,
@@ -1653,15 +1948,35 @@
         })
 
         this.redeployModal.active = true;
-        this.expModal.active = false;
+        
+      },
+        
+      closeModal(modalName) {       
+        
+        
+        switch(modalName) {
+         
+          case 'reDeploy':            
+            this.$refs[modalName].cancel('x')            
+            break;
+            
+          case 'diskImage':            
+            this.$refs[modalName].cancel('x')             
+            break;
+        }
+        
+                
+        
       },
       
       redeployVm (vms) {
         let body = "";
         let url = "";
-        vms.forEach((vm,_) => {
+        let vmName = "";
+        vms.forEach((vm) => {
           body = { "cpus": parseInt(vm.cpus), "ram": parseInt(vm.ram), "disk": vm.disk }
           url = 'experiments/' + this.$route.params.id + '/vms/' + vm.name + '/redeploy'
+          vmName = vm.name
   
           if ( vm.inject ) {
             url += '?replicate-injects=true'
@@ -1671,7 +1986,7 @@
        this.$http.post(url, body)
          .then(null,response => {
            this.$buefy.toast.open({
-             message: 'Redeploying the ' + vm.name + ' VM failed with ' + response.status + ' status.',
+             message: 'Redeploying the ' + vmName + ' VM failed with ' + response.status + ' status.',
              type: 'is-danger',
              duration: 4000
            });
@@ -1680,16 +1995,15 @@
          this.isWaiting = true;
 
  
-//        this.redeployModal.active = false;
-//        this.resetRedeployModal();
+        this.redeployModal.active = false;
+
       },
 
       changeVlan ( index, vlan, from, name ) {        
         if ( vlan === '0' ) {
           this.$buefy.dialog.confirm({
             title: 'Disconnect a VM Network Interface',
-            message: 'This will disconnect the ' + index + ' interface for the ' + name + ' VM.',
-            message: 'This will disconnect the ' + index + ' interface for the ' + name + ' VM.',
+            message: 'This will disconnect the ' + index + ' interface for the ' + name + ' VM.',            
             cancelText: 'Cancel',
             confirmText: 'Disconnect',
             type: 'is-warning',
@@ -1778,7 +2092,8 @@
         this.vlanModal.active = false;
       },
 
-      resetExpModal () {
+      
+      resetExpModal () {        
         this.expModal = {
           active: false,
           vm: [],
@@ -1786,15 +2101,16 @@
         }
       },
     
-      resetRedeployModal () {
+      resetRedeployModal () {       
         this.redeployModal = {
           active: false,
           vm: [],
           actionsQueue: []
         }
+        
       },
     
-      resetDiskImageModal () {
+      resetDiskImageModal () {        
         this.diskImageModal = {
           active: false,
           vm: []
@@ -1816,9 +2132,24 @@
         }  
       },
  
-      isMultiVmSelected () {
+      isMultiVmSelected () {            
         if (this.vmSelectedArray == undefined || this.vmSelectedArray.length ==0) {
           return false;        
+        }
+        return true;
+      },
+          
+      validate () {
+        var regexp = /^[a-zA-Z0-9-_]+$/;
+        for ( let i = 0; i < this.diskImageModal.vm.length; i++ ) {
+            if ( !regexp.test( this.diskImageModal.vm[i].filename ) ) {
+              this.diskImageModal.vm[i].nameErrType = 'is-danger';
+              this.diskImageModal.vm[i].nameErrMsg  = 'image names can only contain alphanumeric, dash, and underscore; we will add the file extension';
+              return false;
+            }
+
+            this.diskImageModal.vm[i].nameErrType = '';
+            this.diskImageModal.vm[i].nameErrMsg = '';
         }
         return true;
       },
@@ -1843,6 +2174,15 @@
               case this.vmActions.captureSnapshot:
                 this.captureSnapshot(this.vmSelectedArray);
                 break;
+              case this.vmActions.restart:
+                this.restartVm(this.vmSelectedArray);
+                break;
+              case this.vmActions.shutdown:
+                this.shutdownVm(this.vmSelectedArray);
+                break;
+              case this.vmActions.resetState:
+                this.resetVmState(this.vmSelectedArray);
+                break;
         
         }
         //Unselect
@@ -1852,7 +2192,20 @@
             if(items[i].type=='checkbox') {
                 items[i].checked=false;
             }
-        }       
+        }  
+        this.showModifyStateBar = false;
+      },
+  
+      selectAllVMs () {
+        
+        var items=document.getElementsByName('multiVmCb');
+        for(var i=0; i<items.length; i++){
+            if(items[i].type=='checkbox') {
+                //Toggle the Checkbox
+                items[i].checked= items.checked == true ? false : true;
+            }
+        }  
+        
       }
     },
     
@@ -1910,6 +2263,7 @@
         vlan: null,
         expName: null,
         isWaiting: true,
+        showModifyStateBar:false,
         vmSelectedArray: [],
         vmActions: { 
           start: 0,
@@ -1917,7 +2271,10 @@
           kill:2,
           redeploy:3,
           createBacking:4,
-          createSnapshot:5 
+          createSnapshot:5,
+          restart:6,
+          shutdown:7,
+          resetState:8
         },
         
       }
