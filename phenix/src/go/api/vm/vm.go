@@ -86,6 +86,7 @@ func List(expName string) ([]mm.VM, error) {
 			vm.Running = details.Running
 			vm.Networks = details.Networks
 			vm.Taps = details.Taps
+			vm.Captures = mm.GetVMCaptures(mm.NS(expName), mm.VMName(vm.Name))
 			vm.Uptime = details.Uptime
 			vm.CPUs = details.CPUs
 			vm.RAM = details.RAM
@@ -192,6 +193,7 @@ func Get(expName, vmName string) (*mm.VM, error) {
 	vm.Running = details[0].Running
 	vm.Networks = details[0].Networks
 	vm.Taps = details[0].Taps
+	vm.Captures = mm.GetVMCaptures(mm.NS(expName), mm.VMName(vmName))
 	vm.Uptime = details[0].Uptime
 	vm.CPUs = details[0].CPUs
 	vm.RAM = details[0].RAM
@@ -452,9 +454,7 @@ func ResetDiskState(expName, vmName string) error {
 		
 		
 	//Overwrite the current vm snapshot with the untouched snapshot
-	//The snapshot is only "untouched" if the vm is started with the
-	//qemu snapshot flag
-	
+		
 	//Get current disk snapshot on the compute node (based on VM ID).
 	cmd := mmcli.NewNamespacedCommand(expName)
 	cmd.Command = "vm info"
