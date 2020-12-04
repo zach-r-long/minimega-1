@@ -2183,7 +2183,7 @@
       selectAllVMs  () {        
         
         //If anything is already selected, unselect everything
-        if (this.vmSelectedArray.length != 0 && this.vmSelectedArray.length != this.experiment.vm_count)
+        if (this.vmSelectedArray.length != 0 && this.vmSelectedArray.length != this.table.total)
         {
           this.unSelectAllVMs();
           document.getElementById('checkAll').checked = false;
