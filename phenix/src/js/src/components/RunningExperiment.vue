@@ -34,7 +34,7 @@
           </template>
           <template v-else>
             <b-tooltip label="pause" type="is-light">
-              <b-button class="button is-danger" icon-left="pause" @click="pauseVm( expModal.vm.name )">
+              <b-button class="button is-warning" icon-left="pause" @click="pauseVm( expModal.vm.name )">
               </b-button>
             </b-tooltip>
           </template>
@@ -1494,7 +1494,7 @@
                     message: 'This will stop all packet captures for the ' + vm.name + ' VM.',
                     cancelText: 'Cancel',
                     confirmText: 'Stop',
-                    type: 'is-warning',
+                    type: 'is-danger',
                     hasIcon: true,
                     onConfirm: () => {
                       this.isWaiting = true;
@@ -1554,7 +1554,7 @@
                         + this.$route.params.id 
                         + '/vms/' 
                         + vm.name 
-                        + '/captures', { "interface": iface, "filename": time } 
+                        + '/captures', { "interface": iface, "filename": vm.name + '_' + time + ".pcap" } 
                       ).then(
                         response => {
                           if ( response.status == 204 ) {
@@ -1677,7 +1677,7 @@
         if ( vmExcludeList.length > 0) {          
           this.$buefy.dialog.alert({
             title: 'No Action',
-            message: 'VMs ' + vmExcludeList.join() +' are already paused',
+            message: 'VMs ' + vmExcludeList.join() + ' are not running',
             confirmText: 'Ok'
           })
         } 
@@ -1904,7 +1904,8 @@
                       let vms = this.experiment.vms;
                       for ( let i = 0; i < vms.length; i++ ) {
                         if ( vms[i].name == response.body.name ) {
-                          vms[i] = response.body;                          
+                          vms[i] = response.body;
+                          window.console.log(vms[i])
                           vms[i].running = false;
                           break;
                         }
@@ -1953,19 +1954,7 @@
         
       closeModal(modalName) {       
         
-        
-        switch(modalName) {
-         
-          case 'reDeploy':            
-            this.$refs[modalName].cancel('x')            
-            break;
-            
-          case 'diskImage':            
-            this.$refs[modalName].cancel('x')             
-            break;
-        }
-        
-                
+        this.$refs[modalName].cancel('x')
         
       },
       
