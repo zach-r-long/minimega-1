@@ -141,7 +141,11 @@ func (this Minimega) GetVMInfo(opts ...Option) VMs {
 			vm.Taps = strings.Split(s, ", ")
 		}
 
-		vm.Captures = this.GetVMCaptures(opts...)
+		//Make sure the vm name is set prior to
+		//calling "GetVMCaptures" as the vm name is not always
+		//set when calling GetVMInfo
+		
+		vm.Captures = this.GetVMCaptures(NS(o.ns),VMName(vm.Name))
 
 		uptime, err := time.ParseDuration(row["uptime"])
 		if err == nil {
