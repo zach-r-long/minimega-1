@@ -268,7 +268,7 @@
       <div  class="level-left"></div>
       <div  class="level-right">
         <div class="level-item" style="margin-bottom: -.3em;">
-        <b-field v-if="isMultiVmSelected() && (experimentUser() || experimentViewer())" position="is-center">
+        <b-field v-if="isMultiVmSelected && (experimentUser() || experimentViewer())" position="is-center">
             <div v-if="adminUser() && !showModifyStateBar">
                 <b-tooltip label="start" type="is-light">
                   <b-button class="button is-success" icon-left="play"  @click="processMultiVmAction(vmActions.start)">
@@ -388,7 +388,8 @@
             backend-sorting
             default-sort-direction="asc"
             default-sort="name"
-            @sort="onSort">
+            @sort="onSort"
+            ref="vmTable">
             <template slot="empty">
               <section  class="section">
                 <div class="content has-text-white has-text-centered">
@@ -399,11 +400,11 @@
             <template slot-scope="props">
                <b-table-column  field="multiselect" label="">              
                  <template v-slot:header="{ column }">
-                   <input type="checkbox" @click="selectAllVMs" id="checkAll" >                  
+                   <input type="checkbox" @click="selectAllVMs" v-model="checkAll" ref="checkAll">                  
                  </template>
                 <template v-if="!props.row.busy">
                   <div>
-                    <input type="checkbox" name="multiVmCb" @click="vmSelected ( props.row.name )" >
+                    <input type="checkbox" :value="props.row.name" v-model="vmSelectedArray" >
                   </div>
                 </template>
                 <template v-else>
@@ -595,7 +596,15 @@
         }
 
         return true;
-      }     
+      },
+      
+      isMultiVmSelected ()  {        
+        if (this.vmSelectedArray == undefined || this.vmSelectedArray.length ==0) {
+          return  false;        
+        }
+        return true;
+      },
+          
       
     },
 
@@ -2108,28 +2117,7 @@
         }
       },
       
-      vmSelected  (name) {
-        
-        var index = this.vmSelectedArray.indexOf(name)        
-        if (index === -1)
-        {
-          this.vmSelectedArray.push(name) 
-        }
-        else
-        {
-          this.vmSelectedArray.splice(index,1) 
-          
-        }
-        
-      },
- 
-      isMultiVmSelected ()  {            
-        if (this.vmSelectedArray == undefined || this.vmSelectedArray.length ==0) {
-          return  false;        
-        }
-        return true;
-      },
-          
+      
       validate  () {
         var regexp = /^[a-zA-Z0-9-_]+$/;
         for ( let i = 0; i < this.diskImageModal.vm.length; i++ ) {
@@ -2180,42 +2168,46 @@
         this.unSelectAllVMs();
       },
   
-      selectAllVMs  () {        
+      selectAllVMs  () {            
         
-        //If anything is already selected, unselect everything
-        if (this.vmSelectedArray.length != 0 && this.vmSelectedArray.length != this.table.total)
+        var visibleItems = this.$refs["vmTable"].visibleData
+        //If there are no visible items, there is nothing to select
+        if(visibleItems.length == 0)
+        {
+          return 
+        }    
+        
+        //If everything is selected, the unselect everything
+        else if(this.vmSelectedArray.length == visibleItems.length)
         {
           this.unSelectAllVMs();
-          document.getElementById('checkAll').checked = false;
           return
           
         }
         
+        //Add all visible items
+        this.vmSelectedArray=[]
         
-        var items=document.getElementsByName('multiVmCb');
-        for(var i=0; i<items.length; i++){
-            if(items[i].type=='checkbox') {
-                //Toggle the Checkbox                
-                items[i].click();
-            }
+        for(var i=0; i<visibleItems.length; i++){
+            this.vmSelectedArray.push(visibleItems[i].name)
         }  
                 
       },
         
       unSelectAllVMs(){
         
-        //Unselect
-        this.vmSelectedArray = [];
-        var items=document.getElementsByName('multiVmCb');
-        for(var i=0; i<items.length; i++){
-            if(items[i].type=='checkbox') {
-                items[i].checked=false;
-            }
-        }  
+        //directly accessing the checkbox should not 
+        //be needed in order to have the "checked" state
+        //update correctly.  Tried v-model.lazy to update on
+        //change events but still did not work.  Will revisit
+        //in the future as time allows
+        this.$refs["checkAll"].checked = false;
+        this.vmSelectedArray=[]
         this.showModifyStateBar = false;
         
       },
   
+      
       updateCaptureLabel(vm) {       
         
         return vm.captures.length == 0 ? "start packet capture" : "stop packet capture"        
@@ -2278,6 +2270,7 @@
         expName: null,
         isWaiting: true,
         showModifyStateBar:false,
+        checkAll:false,
         vmSelectedArray: [],
         vmActions: { 
           start:  0,
