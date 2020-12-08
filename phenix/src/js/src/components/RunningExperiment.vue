@@ -14,15 +14,16 @@
           <p>Uptime:  {{ expModal.vm.uptime | uptime }}</p>
           <p>Network(s):  {{ expModal.vm.networks | stringify | lowercase }}</p>
           <p>Taps:  {{ expModal.vm.taps | stringify | lowercase }}</p>
-          <p  v-if="expModal.snapshots"></p>
-            Snapshots:
-            <br/>
-          <p  v-for="( snap, index ) in expModal.snapshots" :key="index">
-            <b-tooltip label="restore this snapshot" type="is-light is-right">
-              <b-icon icon="play-circle"  style="color:#686868" @click.native="restoreSnapshot( expModal.vm.name, snap )"></b-icon>
-            </b-tooltip>
-            {{ snap }}
-          </p>         
+          <p  v-if="expModal.snapshots">
+            Snapshots:       
+            <br>
+            <p  v-for="( snap, index ) in expModal.snapshots" :key="index">
+              <b-tooltip label="restore this snapshot" type="is-light is-right">
+                <b-icon icon="play-circle"  style="color:#686868" @click.native="restoreSnapshot( expModal.vm.name, snap )"></b-icon>
+              </b-tooltip>
+              {{ snap }}
+            </p>
+          </p>          
       </section>
       <footer class="modal-card-foot  buttons is-right">
         <div v-if="adminUser() && !showModifyStateBar">
@@ -42,31 +43,31 @@
         <div v-if="experimentUser() && !showModifyStateBar && expModal.vm.running">
              &nbsp; 
           <b-tooltip  label="create memory snapshot" type="is-light">
-            <b-button class="button is-light" icon-left="database" @click="diskImage(expModal.vm.name)">
+            <b-button class="button is-light" icon-left="database" @click="notImplemented()">
              </b-button>
           </b-tooltip>
          </div>
          <div v-if="experimentUser() && !showModifyStateBar && expModal.vm.running">
               &nbsp;  
           <b-tooltip  label="create disk snapshot" type="is-light">
-            <b-button class="button is-light" icon-left="hdd-o" @click="diskImage(expModal.vm.name)">
+            <b-button class="button is-light" icon-left="floppy-o" @click="diskImage(expModal.vm.name)">
             </b-button>
           </b-tooltip>
           </div>
-          <div  v-if="experimentUser() && !showModifyStateBar && expModal.vm.running">
-              &nbsp;  
-             <b-tooltip label="record screenshot" type="is-light">
-               <b-button  class="button is-light" icon-left="file-video-o" @click="diskImage(expModal.vm.name)">
-               </b-button>
-             </b-tooltip>
-           </div>
-            <div v-if="experimentUser() && !showModifyStateBar && expModal.vm.running">
+         <div v-if="experimentUser() && !showModifyStateBar && expModal.vm.running">
               &nbsp;  
               <b-tooltip  label="create vm snapshot" type="is-light">
                <b-button  class="button is-light" icon-left="camera" @click="captureSnapshot(expModal.vm.name)">
                </b-button>
               </b-tooltip>
-            </div>    
+          </div>   
+          <div  v-if="experimentUser() && !showModifyStateBar && expModal.vm.running">
+              &nbsp;  
+             <b-tooltip label="record screenshot" type="is-light">
+               <b-button  class="button is-light" icon-left="file-video-o" @click="notImplemented()">
+               </b-button>
+             </b-tooltip>
+           </div>             
             <div v-if="experimentUser() && !showModifyStateBar">
               &nbsp;  
               <b-tooltip  label="modify state" type="is-light">
@@ -283,31 +284,31 @@
           <div  v-if="experimentUser() && !showModifyStateBar">
               &nbsp;  
               <b-tooltip  label="create memory snapshot" type="is-light">
-                <b-button class="button is-light" icon-left="database" @click="processMultiVmAction(vmActions.createBacking)">
+                <b-button class="button is-light" icon-left="database" @click="processMultiVmAction(vmActions.createMemorySnapshot)">
                 </b-button>
               </b-tooltip>
             </div>
             <div v-if="experimentUser() && !showModifyStateBar">
               &nbsp;  
               <b-tooltip  label="create disk snapshot" type="is-light">
-                <b-button class="button is-light" icon-left="hdd-o" @click="processMultiVmAction(vmActions.createBacking)">
+                <b-button class="button is-light" icon-left="floppy-o" @click="processMultiVmAction(vmActions.createBacking)">
                 </b-button>
               </b-tooltip>
-            </div>
-            <div v-if="experimentUser() && !showModifyStateBar">
-              &nbsp;  
-              <b-tooltip  label="record screenshot" type="is-light">
-                <b-button class="button is-light" icon-left="file-video-o" @click="processMultiVmAction(vmActions.createBacking)">
-                </b-button>
-              </b-tooltip>
-            </div>
+            </div>            
             <div v-if="experimentUser() && !showModifyStateBar">
               &nbsp;  
               <b-tooltip  label="create vm snapshot" type="is-light">
                <b-button  class="button is-light" icon-left="camera" @click="processMultiVmAction(vmActions.captureSnapshot)">
                </b-button>
               </b-tooltip>
-            </div>    
+            </div> 
+            <div v-if="experimentUser() && !showModifyStateBar">
+              &nbsp;  
+              <b-tooltip  label="record screenshot" type="is-light">
+                <b-button class="button is-light" icon-left="file-video-o" @click="processMultiVmAction(vmActions.recordScreenshots)">
+                </b-button>
+              </b-tooltip>
+            </div>
             <div v-if="experimentUser() && !showModifyStateBar">
               &nbsp;  
               <b-tooltip  label="modify state" type="is-light">
@@ -400,7 +401,9 @@
             <template slot-scope="props">
                <b-table-column  field="multiselect" label="">              
                  <template v-slot:header="{ column }">
-                   <input type="checkbox" @click="selectAllVMs" v-model="checkAll" ref="checkAll">                  
+                   <b-tooltip label="Select/Unselect All" type="is-dark">
+                   <input type="checkbox" @click="selectAllVMs" v-model="checkAll" ref="checkAll">  
+                   </b-tooltip>
                  </template>
                 <template v-if="!props.row.busy">
                   <div>
@@ -2162,6 +2165,8 @@
               case  this.vmActions.resetState:
                 this.resetVmState(this.vmSelectedArray);
                 break;
+              default:
+                this.notImplemented();
         
         }
         
@@ -2211,6 +2216,17 @@
       updateCaptureLabel(vm) {       
         
         return vm.captures.length == 0 ? "start packet capture" : "stop packet capture"        
+        
+      },
+        
+      notImplemented(){
+        
+       this.$buefy.dialog.alert({
+            title: 'Not Implemented',
+            message: 'This function has not yet been implemented',
+            type:'is-dark',
+            confirmText: 'Ok'
+          }) 
         
       }
     },
@@ -2281,7 +2297,10 @@
           createSnapshot:5,
           restart:6,
           shutdown:7,
-          resetState:8
+          resetState:8,
+          createMemorySnapshot:9,
+          recordScreenshots:10
+          
         },
         
       }
