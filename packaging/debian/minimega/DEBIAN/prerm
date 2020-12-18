@@ -1,0 +1,7 @@
+#!/bin/bash
+
+echo "Stopping minimega, miniweb, and phenix services..."
+
+for unit in phenix miniweb minimega; do
+  systemctl stop $unit 2>&1
+done
