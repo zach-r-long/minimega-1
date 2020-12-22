@@ -32,3 +32,7 @@ docker run -it --rm -v $(pwd):/minimega -w /minimega -u $USERNAME minimega:build
 bin/pyapigen bin/minimega
 
 echo DONE BUILDING MINIMEGA
+
+
+(cd phenix && ./docker-build.sh -d)
+cp phenix/bin/phenix bin/phenix
