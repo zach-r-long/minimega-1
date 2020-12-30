@@ -81,6 +81,15 @@ message BackingImageResponse {
 	VM vm = 2;
 }
 
+message MemorySnapshotRequest {
+	string filename = 1;
+}
+
+message MemorySnapshotResponse {
+	string disk = 1;
+	VM vm = 2;
+}
+
 message StartCaptureRequest {
   uint32 interface = 1;
   string filename = 2;

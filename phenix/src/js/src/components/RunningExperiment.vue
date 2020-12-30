@@ -43,7 +43,7 @@
         <div v-if="experimentUser() && !showModifyStateBar && expModal.vm.running">
              &nbsp; 
           <b-tooltip  label="create memory snapshot" type="is-light">
-            <b-button class="button is-light" icon-left="database" @click="notImplemented()">
+            <b-button class="button is-light" icon-left="database" @click="memoryDump(expModal.vm.name)">
              </b-button>
           </b-tooltip>
          </div>
@@ -245,8 +245,40 @@
           <button class="button"  type="button" 
               @click="closeModal('diskImage')">
               Cancel
-        </button>  
+         </button>  
           <button class="button is-success" :disabled="!validate()" @click="backingImage(diskImageModal.vm)">
+            Create
+          </button>
+        </footer>
+      </div>
+    </b-modal>
+    <b-modal :active.sync="memoryDumpModal.active" has-modal-card :on-cancel="resetMemoryDumpModal" ref="memoryDump">
+      <div  class="modal-card" style="width:auto">
+        <header class="modal-card-head">
+          <p  class="modal-card-title">Create a Disk Image</p>
+        </header>
+        <section class="modal-card-body">
+         <div v-if="memoryDumpModal.vm.length > 0">
+              <div  v-for="(vmI,index) in memoryDumpModal.vm" :key="index" class="level">
+                 <div class="level-item">             
+                  <font color="#202020">
+                    <hr v-if="parseInt(index) > 0" style="color:#595959;background-color:#595959">
+                        Create memory capture of the {{ vmI.name }} VM with filename:                 
+                        <br><br>
+                        <b-field :type="vmI.nameErrType" :message="vmI.nameErrMsg" autofocus>
+                          <b-input  type="text" v-model="vmI.filename"   focus></b-input>
+                         </b-field>
+                  </font>          
+                </div>                                 
+              </div>
+          </div>
+        </section>        
+        <footer class="modal-card-foot buttons is-right">
+          <button class="button"  type="button" 
+              @click="closeModal('memoryDump')">
+              Cancel
+         </button>  
+          <button class="button is-success" :disabled="!validate()" @click="memoryCapture(memoryDumpModal.vm)">
             Create
           </button>
         </footer>
@@ -861,6 +893,88 @@
 
                 break;
               }
+              
+              case  'progress': {
+                 //this.$buefy.toast.open({
+                 //     message: 'PROGRESS',
+                 //     duration: 200
+                 //   });
+                let percent = ( msg.result.percent * 100 ).toFixed( 0 );
+
+                for ( let i = 0; i < vms.length; i++ ) {
+                  if  ( vms[i].name == vm[ 1 ] ) {
+                    vms[i].busy = true; //incase committing message is missed
+                    vms[i].percent = percent;
+
+                    this.experiment.vms = [ ... vms ];
+
+                    break;
+                  }
+                }
+
+                break;
+              }
+            }
+
+            break;
+          }
+
+//--------------------------------------------------In work------------------------------------------------------
+
+          case  'experiment/vm/memorySnapshot': {
+            let vm = msg.resource.name.split( '/' );
+            let vms = this.experiment.vms;
+
+            switch ( msg.resource.action ) {
+
+              case  'commit': {
+                for ( let i = 0; i < vms.length; i++ ) {
+                  if  ( vms[i].name == vm[ 1 ] ) {
+                    vms[i].busy = false;
+                    vms[i] = msg.result.vm;
+
+                      let disk  = msg.result.disk;
+                  
+                      this.$buefy.toast.open({
+                        message: 'The memory snapshot with name ' + disk + ' for the ' + vm[ 1 ] + ' VM was successfully created.',
+                        type: 'is-success',
+                        duration: 4000
+                      });
+                    }
+                
+                    this.experiment.vms = [ ...vms ];
+                  }
+                  break;
+                }
+
+              case  'committing': {
+                 //this.$buefy.toast.open({
+                 //     message: 'COMMITING',
+                 //     duration: 200
+                 //   });
+
+                for ( let i = 0; i < vms.length; i++ ) {
+                  if  ( vms[i].name == vm[ 1 ] ) {
+                    vms[i].busy = true;
+                    vms[i].percent = 0;
+
+                    let disk = msg.result.disk;
+                
+                    this.$buefy.toast.open({
+                      message:  'A memory snapshot with name ' + disk + ' for the ' + vm[ 1 ] + ' VM is being created.',
+                      type: 'is-warning',
+                      duration: 4000
+                    });
+                
+                    this.experiment.vms = [ ...vms ];
+                  }
+
+                  break;
+                }
+
+                break;
+              }
+              
 
               case  'progress': {
                  //this.$buefy.toast.open({
@@ -886,6 +1000,8 @@
 
             break;
           }
+
+//------------------------------------------END WORK-------------------------------------
 
           case  'experiment/vm/screenshot': {
             let vm = msg.resource.name.split( '/' );
@@ -1326,42 +1442,85 @@
         vm.forEach((arg,) => {
           vmList = vmList + arg.name + ", ";
         })
-	vmList = vmList.slice(0,-2)
-	this.$buefy.dialog.confirm({
-          title: 'Create a Disk Images',
-          message: 'This will create a backing image for the VMs ' + vmList,
-          cancelText: 'Cancel',
-          confirmText: 'Create',
-          type: 'is-success',
-          hasIcon: true,
-          onConfirm: () => {
-            this.diskImageModal.active = false;
-            this.resetDiskImageModal();
-            let url = "";
-            let name = "";
-            let body = "";
-	    vm.forEach((arg,) => {
-              url = 'experiments/' + this.$route.params.id + '/vms/' + arg.name + '/commit';
-              body = { "filename": arg.filename  + '.qc2' };
-              name = arg.name;
-            
-              this.$http.post(url,body,{ timeout: 0 }).then(
-                response => {
-                   console.log('backing image for vm ' + name + ' failed with ' + response.status);
-                }, response => {
-                  this.$buefy.toast.open({
-                     message: 'Creating the backing image for the ' + name + ' VM failed with ' + response.status + ' status.',
-                     type: 'is-danger',
-                     duration: 4000
-                   });
-                }
-              );
-            })
-	  }
-        })
+	      vmList = vmList.slice(0,-2);
+        this.diskImageModal.active = false;
+        this.resetDiskImageModal();
+        let url = "";
+        let name = "";
+        let body = "";
+	      vm.forEach((arg,) => {
+          url = 'experiments/' + this.$route.params.id + '/vms/' + arg.name + '/commit';
+          body = { "filename": arg.filename  + '.qc2' };
+          name = arg.name;
         
-        this.diskImageModal.active = true;
+          this.$http.post(url,body,{ timeout: 0 }).then(
+            response => {
+               console.log('backing image for vm ' + name + ' failed with ' + response.status);
+            });
+        });
+        //this.diskImageModal.active = true;
       },
+
+      memoryDump (name)  {
+        var now = new Date();
+        var date = now.getFullYear()
+          + ''  + ( '0' + now.getMonth() + 1 ).slice( -2 )
+          + ''  + now.getDate();
+        var time = ( '0' + now.getHours() ).slice( -2 )
+          + ''  + ( '0' + now.getMinutes() ).slice( -2 )
+          + ''  + ( '0' + now.getSeconds() ).slice( -2 );
+        if (! Array.isArray(name)) {
+          name  = [name];
+        }
+        let vms = this.experiment.vms;
+        name.forEach((arg,) => {
+          for ( let i = 0; i < vms.length; i++ ) {
+            if ( vms[i].name == arg ){
+			  var filename=""; 
+			  if ( /(.*)_\d{14}/.test( vms[i].disk ) ) {
+			    filename = vms[i].disk.substring( 0, vms[i].disk.indexOf( '_' ) ) + '_MemorySnap_' + date + time;
+			  } else {
+			    filename = vms[i].disk.substring( 0, vms[i].disk.indexOf( '.' ) ) + '_MemorySnap_' + date + time;
+			  }
+                          filename = vms[i].name +"_"+ filename.substring(filename.lastIndexOf( '/')+1 ); 
+                          this.memoryDumpModal.vm.push({
+                            dateTime:date+time+"" ,
+                            name:vms[i].name ,
+                            filename:filename ,
+                            nameErrType:"" ,
+                            nameErrMsg:""
+                          });
+			}
+		  }
+        })
+        this.expModal.active = false;
+        this.memoryDumpModal.active = true;
+      },
+
+      memoryCapture (vm) {
+        let vmList = "";
+        vm.forEach((arg,) => {
+          vmList = vmList + arg.name + ", ";
+        })
+	      vmList = vmList.slice(0,-2)
+
+        this.memoryDumpModal.active = false;
+        this.resetMemoryDumpModal();
+        let url = "";
+        let name = "";
+        let body = "";
+	      vm.forEach((arg,) => {
+          url = 'experiments/' + this.$route.params.id + '/vms/' + arg.name + '/memorySnapshot';
+          body = { "filename": arg.filename  + '.elf' };
+          name = arg.name;
+          
+          this.$http.post(url,body,{ timeout: 0 }).then(
+            response => {
+               console.log('memory snapshot for vm ' + name + ' failed with ' + response.status);
+            });
+        });
+      },
+      
       killVm ( name ) {
         if (! Array.isArray(name)) {
           name  = [name];
@@ -2134,6 +2293,13 @@
           vm: []
         }
       },
+
+      resetMemoryDumpModal ()  {        
+        this.memoryDumpModal = {
+          active: false,
+          vm: []
+        }
+      },
       
       validate  () {
         var regexp = /^[a-zA-Z0-9-_]+$/;
@@ -2146,6 +2312,16 @@
 
             this.diskImageModal.vm[i].nameErrType = '';
             this.diskImageModal.vm[i].nameErrMsg = '';
+        }
+        for ( let i = 0; i < this.memoryDumpModal.vm.length; i++ ) {
+            if ( !regexp.test( this.memoryDumpModal.vm[i].filename ) ) {
+              this.memoryDumpModal.vm[i].nameErrType = 'is-danger';
+              this.memoryDumpModal.vm[i].nameErrMsg   = 'image names can only contain alphanumeric, dash, and underscore; we will add the file extension';
+              return  false;
+            }
+
+            this.memoryDumpModal.vm[i].nameErrType = '';
+            this.memoryDumpModal.vm[i].nameErrMsg = '';
         }
         return true;
       },
@@ -2166,6 +2342,9 @@
                 break;
               case  this.vmActions.createBacking:
                 this.diskImage(this.vmSelectedArray);
+                break;
+              case  this.vmActions.createMemorySnapshot:
+                this.memoryDump(this.vmSelectedArray);
                 break;
               case  this.vmActions.captureSnapshot:
                 this.captureSnapshot(this.vmSelectedArray);
@@ -2283,6 +2462,14 @@
           inject: false
         },
         diskImageModal: {
+          active: false,
+          vm:[],
+          /*  vm is structured as so:
+           name:  null, filename: null, dateTime: null, 
+           nameErrType: null, nameErrMsg: null
+          */
+        },
+        memoryDumpModal: {
           active: false,
           vm:[],
           /*  vm is structured as so:

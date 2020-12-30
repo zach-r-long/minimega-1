@@ -938,7 +938,7 @@ func CommitToDisk(expName, vmName, out string, cb func(float64)) (string, error)
 		if err := mmcli.ErrorResponse(mmcli.Run(cmd)); err != nil {
 			return "", fmt.Errorf("stopping VM: %w", err)
 		}
-	}
+	}                           
 
 	// Copy minimega snapshot disk on remote machine to a location (still on
 	// remote machine) that can be seen by minimega files. Then use minimega `file
@@ -1045,3 +1045,96 @@ func CommitToDisk(expName, vmName, out string, cb func(float64)) (string, error)
 	return out, nil
 
 }
+
+//-----------------------------------------------------------------------------------------------------------------
+
+func MemorySnapshot(expName, vmName, out string, cb func(string)) (string, error) {
+
+	_, err := Get(expName, vmName)
+	if err != nil {
+		return "", fmt.Errorf("getting VM details: %w", err)
+	}
+
+	if out == "" {
+		var err error
+
+		out, err = GetNewDiskName(expName, vmName)
+		if err != nil {
+			return "", fmt.Errorf("getting new disk name for VM %s in experiment %s: %w", vmName, expName, err)
+		}
+		out = fmt.Sprintf("%s_%s__%s_memorySnapshot.elf", expName, vmName, out)
+	}
+
+	base, err := getBaseImage(expName, vmName)
+	if err != nil {
+		return "", fmt.Errorf("getting base image for VM %s in experiment %s: %w", vmName, expName, err)
+	}
+
+	// Get compute node VM is running on.
+
+	cmd := mmcli.NewNamespacedCommand(expName)
+	cmd.Command = "vm info"
+	cmd.Columns = []string{"host", "name", "id", "state"}
+	cmd.Filters = []string{"name=" + vmName}
+
+	status := mmcli.RunTabular(cmd)
+
+	if len(status) == 0 {
+		return "", fmt.Errorf("VM not found")
+	}
+
+	if !filepath.IsAbs(base) {
+		base = common.PhenixBase + "/images/" + base
+	}
+	if !filepath.IsAbs(out) {
+		out = common.PhenixBase + "/images/" + out
+	}
+
+	// ***** BEGIN: MEMORY SNAPSHOT VM *****
+
+	// Get minimega's memory snapshot path for VM
+
+	cmd.Columns = nil
+	cmd.Filters = nil
+
+	qmp := fmt.Sprintf(`{ "execute": "dump-guest-memory", "arguments": { "protocol": "file:%s", "paging": false, "format" : "elf" } }`, out)
+	cmd.Command = fmt.Sprintf("vm qmp %s '%s'", vmName, qmp)
+
+	if err := mmcli.ErrorResponse(mmcli.Run(cmd)); err != nil {
+		return "", fmt.Errorf("starting memory snapshot for VM %s: ERROR: %w -- cmd: '%s'", vmName, err, cmd)
+		err = nil
+	}
+
+	done := make(chan struct{})
+	defer close(done)
+	eChan := make(chan error)
+	resChan := make(chan os.FileInfo)
+	go func (respChan chan <- os.FileInfo,errorChan chan <- error) {
+		time.Sleep(2 * time.Second)
+		stat, err := os.Stat(out)
+		if err != nil {
+			errorChan <- err
+		} else {
+			respChan <- stat
+		}
+	}(resChan, eChan)
+
+	for i := 0; i < 100; i++ {
+		i = i % 99
+		select{
+		case err := <- eChan:
+			cb("failed")
+			return "", fmt.Errorf("Failed to make memory snapshot for VM %s: ERROR: %w", vmName, err)
+		case <- resChan:
+			cb("completed")
+			return out, nil
+		default:
+			cb(fmt.Sprintf("%f", float64(i)))
+			time.Sleep(100*time.Millisecond)
+			continue
+		}	
+	}	
+	return out, nil
+
+}
+

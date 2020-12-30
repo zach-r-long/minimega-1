@@ -249,3 +249,9 @@ type BlockDeviceJobs struct {
 	Length int    `json:"len"`
 	Offset int    `json:"offset"`
 }
+
+type BlockDumpResponse struct {
+	Status 	  string `json:"status"`
+	Completed int 	 `json:"completed"`
+	Total     int    `json:"total"`
+}
