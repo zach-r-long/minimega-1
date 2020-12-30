@@ -10,3 +10,6 @@ clean:
 
 dist/index.html: $(SOURCES)
 	(yarn install ; yarn build)
+
+web: $(SOURCES)
+	(yarn build)
